@@ -42,7 +42,7 @@
 }
 .r-edge-nav.hide { opacity: 0; pointer-events: none; }
 .r-edge-nav:not(.hide) { opacity: 1; }
-.r-edge-nav.ready { box-shadow: 0 4px 16px var(--c-primary); color: var(--c-primary); border-color: var(--c-primary); }
+.r-edge-nav.ready { box-shadow: 0 4px 16px var(--c-accent); color: var(--c-accent); border-color: var(--c-accent); }
 .r-edge-nav .ic-wrap { display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; }
 .r-edge-nav .ic-wrap svg { width: 14px; height: 14px; }
 

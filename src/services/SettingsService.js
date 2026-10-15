@@ -52,7 +52,12 @@ class SettingsService {
   }
 
   _applyTheme() {
-    document.documentElement.setAttribute('data-theme', this._settings.theme);
+    const theme = this._settings.theme || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.content = theme === 'light' ? '#f4f4f8' : (theme === 'sepia' ? '#f4ecd8' : '#08080c');
+    }
   }
 
   get(key) { return this._settings[key]; }

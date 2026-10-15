@@ -93,12 +93,12 @@ if (Capacitor.isNativePlatform()) {
     popup.className = 'r-exit-popup';
     popup.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;opacity:0;transition:opacity 0.2s ease';
     popup.innerHTML = `
-      <div style="background:var(--bg);padding:24px;border-radius:16px;width:280px;text-align:center;transform:scale(0.9);transition:transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)">
-        <h3 style="margin:0 0 8px 0;font-size:18px;color:var(--text)">Exit App?</h3>
-        <p style="margin:0 0 24px 0;font-size:14px;color:var(--text);opacity:0.7">Are you sure you want to close the app?</p>
+      <div style="background:var(--c-surface);border:1px solid var(--c-border);padding:24px;border-radius:16px;width:280px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.25);transform:scale(0.9);transition:transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)">
+        <h3 style="margin:0 0 8px 0;font-size:18px;color:var(--c-text)">Exit App?</h3>
+        <p style="margin:0 0 24px 0;font-size:14px;color:var(--c-text2)">Are you sure you want to close the app?</p>
         <div style="display:flex;gap:12px">
-          <button id="ep-cancel" class="r-btn" style="flex:1;background:var(--bg-panel);color:var(--text);border:none;padding:12px;border-radius:8px;font-weight:bold;cursor:pointer">Cancel</button>
-          <button id="ep-exit" class="r-btn" style="flex:1;background:var(--primary);color:#fff;border:none;padding:12px;border-radius:8px;font-weight:bold;cursor:pointer">Exit</button>
+          <button id="ep-cancel" class="r-btn" style="flex:1;background:var(--c-surface2);color:var(--c-text);border:1px solid var(--c-border);padding:12px;border-radius:8px;font-weight:bold;cursor:pointer">Cancel</button>
+          <button id="ep-exit" class="r-btn" style="flex:1;background:var(--c-accent);color:#fff;border:none;padding:12px;border-radius:8px;font-weight:bold;cursor:pointer">Exit</button>
         </div>
       </div>
     `;

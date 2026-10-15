@@ -16,11 +16,25 @@ export function setLookupMode(v) { isLookupMode = v; }
 
 export function injectContentHooks(doc, foliateView) {
   if (!doc?.body) return;
+  const s = settingsService.getAll();
+  const colors = {
+    dark: { bg: '#08080c', fg: '#eaeaf2' },
+    light: { bg: '#f8f9fb', fg: '#18182a' },
+    sepia: { bg: '#f5eed6', fg: '#3c2d14' },
+  }[s.theme] || { bg: '#08080c', fg: '#eaeaf2' };
+
+  try {
+    doc.documentElement.style.setProperty('--theme-bg-color', colors.bg);
+    doc.documentElement.style.backgroundColor = colors.bg;
+    doc.body.style.setProperty('--theme-bg-color', colors.bg);
+    doc.body.style.backgroundColor = colors.bg;
+  } catch {}
+
   const furiganaOn = settingsService.get('furiganaEnabled');
   const furiganaColor = settingsService.get('furiganaColor') || '#4ec9b0';
   const style = doc.createElement('style');
   style.textContent = `
-    ruby { ruby-align: center; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; }
+    ruby { ruby-align: center; }
     ruby rt { font-size: 0.55em; color: ${furiganaColor}; font-weight: 400; -webkit-user-select: none !important; user-select: none !important; pointer-events: none !important; line-height: 1 !important; }
     ruby rp { display: none; -webkit-user-select: none !important; user-select: none !important; pointer-events: none !important; }
     body.furigana-hidden ruby rt { visibility: hidden !important; font-size: 0 !important; line-height: 0 !important; }
@@ -353,9 +367,6 @@ function normalizeSelectedLookupText(text = '') {
 
 export async function injectFurigana(body) {
   if (!body) return;
-  // If the chapter already contains native furigana, do not inject machine furigana
-  // to avoid corrupting layout or triggering Chromium multi-column fragmentation crashes.
-  if (body.querySelectorAll('ruby').length >= 8) return;
 
   const ownerDoc = body.ownerDocument;
   const processed = new Set();
@@ -372,7 +383,6 @@ export async function injectFurigana(body) {
         if (annotated && annotated !== child.textContent && annotated.includes('<ruby>')) {
           const w = ownerDoc.createElement('span');
           w.className = 'furigana-injected';
-          w.style.breakInside = 'avoid';
           w.dataset.lookupText = child.textContent;
           w.innerHTML = annotated;
           child.parentNode.replaceChild(w, child);
@@ -398,10 +408,10 @@ export function applyStyles(foliateView) {
   if (!foliateView?.renderer) return;
   const s = settingsService.getAll();
   const colors = {
-    dark: { bg: '#0a0a0f', fg: '#d4d4d4', link: '#7dd3fc' },
-    light: { bg: '#f8f9fb', fg: '#1a1f2e', link: '#2563eb' },
+    dark: { bg: '#08080c', fg: '#eaeaf2', link: '#7dd3fc' },
+    light: { bg: '#f8f9fb', fg: '#18182a', link: '#2563eb' },
     sepia: { bg: '#f5eed6', fg: '#3c2d14', link: '#8b5a2b' },
-  }[s.theme] || { bg: '#0a0a0f', fg: '#d4d4d4', link: '#7dd3fc' };
+  }[s.theme] || { bg: '#08080c', fg: '#eaeaf2', link: '#7dd3fc' };
   const ta = s.textAlign === 'original' ? 'start' : s.textAlign;
   const dirCss = s.textDirection === 'rtl'
     ? 'writing-mode:vertical-rl!important; direction:ltr!important; text-orientation:mixed!important;'
@@ -410,20 +420,42 @@ export function applyStyles(foliateView) {
       : '';
   foliateView.renderer.setStyles?.(`
     @namespace epub "http://www.idpf.org/2007/ops";
-    html { background:${colors.bg}!important; }
-    body { background:${colors.bg}!important; color:${colors.fg}!important;
-      font-family:'${s.fontFamily}','Noto Sans JP',sans-serif!important;
-      font-size:${s.fontSize}px!important; font-weight:${s.fontWeight || 400}!important;
-      line-height:${s.lineHeight}!important; ${dirCss} }
-    iframe, canvas, svg { background-color:${colors.bg}!important; }
-    p,li,blockquote,dd { text-align:${ta}!important;
-      hanging-punctuation: allow-end last; widows:2; }
-    ruby { break-inside: avoid !important; -webkit-column-break-inside: avoid !important; }
-    ruby rt { font-size:0.55em!important; color:${s.furiganaColor || '#4ec9b0'}!important; -webkit-user-select:none!important; user-select:none!important; pointer-events:none!important; line-height: 1 !important; }
-    ruby rp { -webkit-user-select:none!important; user-select:none!important; pointer-events:none!important; }
+    html {
+      --theme-bg-color: ${colors.bg}!important;
+      background: ${colors.bg}!important;
+      background-color: ${colors.bg}!important;
+      color-scheme: ${s.theme === 'dark' ? 'dark' : 'light'}!important;
+    }
+    body {
+      --theme-bg-color: ${colors.bg}!important;
+      background: ${colors.bg}!important;
+      background-color: ${colors.bg}!important;
+      color: ${colors.fg}!important;
+      font-family: '${s.fontFamily}', 'Noto Sans JP', sans-serif!important;
+      font-size: ${s.fontSize}px!important;
+      font-weight: ${s.fontWeight || 400}!important;
+      line-height: ${s.lineHeight}!important;
+      ${dirCss}
+    }
+    iframe, canvas, svg { background-color: ${colors.bg}!important; }
+    p, li, blockquote, dd { text-align: ${ta}!important;
+      hanging-punctuation: allow-end last; widows: 2; }
+    a:link { color: ${colors.link}!important; }
+    ruby rt { font-size: 0.55em!important; color: ${s.furiganaColor || '#4ec9b0'}!important; -webkit-user-select: none!important; user-select: none!important; pointer-events: none!important; line-height: 1 !important; }
+    ruby rp { -webkit-user-select: none!important; user-select: none!important; pointer-events: none!important; }
     body.furigana-hidden ruby rt { visibility: hidden !important; font-size: 0 !important; line-height: 0 !important; }
-    pre { white-space:pre-wrap!important; }
-    aside[epub|type~="footnote"],aside[epub|type~="endnote"],
-    aside[epub|type~="note"],aside[epub|type~="rearnote"] { display:none; }
+    pre { white-space: pre-wrap!important; }
+    aside[epub|type~="footnote"], aside[epub|type~="endnote"],
+    aside[epub|type~="note"], aside[epub|type~="rearnote"] { display: none; }
   `);
+  forEachIframeDoc(foliateView, (doc) => {
+    try {
+      doc.documentElement.style.setProperty('--theme-bg-color', colors.bg);
+      doc.documentElement.style.backgroundColor = colors.bg;
+      if (doc.body) {
+        doc.body.style.setProperty('--theme-bg-color', colors.bg);
+        doc.body.style.backgroundColor = colors.bg;
+      }
+    } catch {}
+  });
 }

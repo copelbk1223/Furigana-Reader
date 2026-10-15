@@ -229,6 +229,7 @@ async function openBook(book) {
     activeContentDoc = doc;
     bindKeyboardDoc(doc);
     injectContentHooks(doc, foliateView);
+    applyStyles(foliateView);
     doc.addEventListener('click', () => {
       document.querySelector('.r-sheet')?.remove();
       if (getLookupMode() || doc.getSelection()?.toString()) return;
