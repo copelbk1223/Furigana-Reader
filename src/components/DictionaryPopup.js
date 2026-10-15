@@ -165,18 +165,7 @@ async function showDictionaryFullPage(word, reading, results = []) {
     }
 
     if (sourceStatus.wordnet) {
-      let wordnetEntries = await dictionaryService.lookupExternal('wordnet', displayWord, relatedKeys);
-      if (entry && !wordnetEntries.length) {
-         const related = [...new Set([...(entry.kanji || []), ...(entry.kana || [])].filter(v => v && v !== displayWord))];
-         const firstSense = entry.sense?.[0];
-         wordnetEntries = [{
-           id: `jmdict-wordnet-fallback-${displayWord}`, word: displayWord,
-           definition: firstSense?.gloss?.slice(0, 3)?.join('; ') || '',
-           synonyms: related.slice(0, 8),
-           semantic: firstSense?.pos?.slice(0, 3)?.join(', ') || 'JMdict semantic category',
-           source: 'JMdict fallback',
-         }];
-      }
+      const wordnetEntries = await dictionaryService.lookupExternal('wordnet', displayWord, relatedKeys);
       renderCollapsibleSection(page.querySelector('#async-wordnet'), 'Semantic Links', 'WordNet', wordnetEntries, renderExternalEntry, 'No WordNet semantic links found for this word.');
     }
 
@@ -186,16 +175,7 @@ async function showDictionaryFullPage(word, reading, results = []) {
     }
 
     if (sourceStatus.wiktionary) {
-      let wiktionaryEntries = await dictionaryService.lookupExternal('wiktionary', displayWord, relatedKeys);
-      if (entry && !wiktionaryEntries.length) {
-        wiktionaryEntries = entry.sense?.slice(0, 4).map((sense, index) => ({
-          id: `jmdict-wiktionary-fallback-${displayWord}-${index}`,
-          term: displayWord,
-          gloss: sense.gloss?.join('; ') || '',
-          description: sense.pos?.join(', ') || 'JMdict definition',
-          source: 'JMdict fallback',
-        })).filter(item => item.gloss) || [];
-      }
+      const wiktionaryEntries = await dictionaryService.lookupExternal('wiktionary', displayWord, relatedKeys);
       renderCollapsibleSection(page.querySelector('#async-wiktionary'), 'Additional Sources', 'Wiktionary / Wikidata', wiktionaryEntries, renderExternalEntry, 'No Wiktionary/Wikidata entries found for this word.');
     }
   }

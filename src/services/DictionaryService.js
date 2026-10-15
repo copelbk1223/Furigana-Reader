@@ -83,6 +83,7 @@ class DictionaryService {
     this._jmdictIndex = null;
     this._kanjidicCache = null;
     this._externalCaches = { wordnet: null, tanaka: null, wiktionary: null };
+    this._externalIndexes = { wordnet: null, tanaka: null, wiktionary: null };
     this._statusCache = null;
   }
 
@@ -113,8 +114,7 @@ class DictionaryService {
 
   async enable(name, onProgress = () => {}) {
     onProgress(10);
-    // When a user enables a dictionary, we just mark it as loaded in Preferences.
-    // The data is loaded into memory on-demand from the bundled JSON.
+    // When a user enables a dictionary, we mark it as loaded in Preferences.
     const status = await this._getStatus();
     status[name] = { 
       name, 
@@ -124,7 +124,7 @@ class DictionaryService {
     };
     await this._saveStatus();
     
-    // Pre-warm the cache for this dictionary in memory to make lookups fast
+    // Pre-warm the cache and index for this dictionary in memory to make lookups fast
     onProgress(40);
     if (name === 'jmdict') await this._loadBundledJmdict();
     else if (name === 'kanjidic') await this._loadBundledKanjidic();
@@ -142,48 +142,62 @@ class DictionaryService {
     // Free up RAM
     if (name === 'jmdict') { this._jmdictCache = null; this._jmdictIndex = null; }
     else if (name === 'kanjidic') this._kanjidicCache = null;
-    else if (this._externalCaches[name]) this._externalCaches[name] = null;
+    else if (this._externalCaches[name]) {
+      this._externalCaches[name] = null;
+      if (this._externalIndexes) this._externalIndexes[name] = null;
+    }
   }
 
   async lookupExternal(name, word, relatedKeys = []) {
     if (!word || !(await this.isLoaded(name))) return [];
     
-    const jmdictResults = await this.lookupWord(word);
-    const jmdictKeys = jmdictResults.flatMap(entry => [...(entry.kanji || []), ...(entry.kana || [])]);
-    const keys = [...new Set([word, ...relatedKeys, ...jmdictKeys, ...getLookupVariants(word)]
-      .map(normalizeLookupKey)
-      .filter(Boolean))];
+    await this._loadExternal(name);
+    const data = this._externalCaches[name];
+    const index = this._externalIndexes?.[name];
+    if (!data || !data.length || !index) return [];
 
-    const data = await this._loadExternal(name);
-    if (!data || !data.length) return [];
-
-    const byKey = new Map();
-    const addRow = (row) => {
-      const rowKeys = row.keys || [];
-      let matched = false;
-      for (const k of keys) {
-        if (rowKeys.some(rk => {
-            const norm = normalizeLookupKey(rk);
-            return norm === k || (norm.includes(k) || k.includes(norm));
-        })) {
-          matched = true; break;
-        }
-        if (name === 'tanaka' && row.japanese && normalizeLookupKey(row.japanese).includes(k)) {
-          matched = true; break;
+    // Prioritized search keys:
+    // 1. Target word itself (exact match)
+    // 2. Inflection base form variants (e.g. 食べた -> 食べる)
+    // 3. Related kanji/kana spellings from JMdict
+    const cleanWord = normalizeLookupKey(word);
+    const variants = getLookupVariants(word).map(normalizeLookupKey).filter(k => k && k !== cleanWord);
+    const otherKeys = (relatedKeys || []).map(normalizeLookupKey).filter(k => k && k !== cleanWord && !variants.includes(k));
+    
+    // Ordered priority list of exact keys to query
+    const searchKeys = [cleanWord, ...variants, ...otherKeys];
+    
+    const seen = new Set();
+    const results = [];
+    
+    // Exact O(1) matching via inverted index
+    for (const k of searchKeys) {
+      const hits = index.get(k) || [];
+      for (const idx of hits) {
+        if (!seen.has(idx)) {
+          seen.add(idx);
+          results.push(data[idx]);
+          if (results.length >= 16) break;
         }
       }
-      if (!matched) return;
-      const uniqueKey = row.id || JSON.stringify(row);
-      byKey.set(uniqueKey, { ...row, keys: rowKeys });
-    };
-
-    // Fast array filter (much faster than Dexie filter)
-    for (let i = 0; i < data.length; i++) {
-      addRow(data[i]);
-      if (byKey.size >= 24) break; // Limit fast return
+      if (results.length >= 16) break;
     }
-
-    return [...byKey.values()].slice(0, 24);
+    
+    // For Tanaka sentence corpus: if exact keyword index found fewer than 5 sentences,
+    // look for sentences where the Japanese text directly contains the exact searched word
+    if (name === 'tanaka' && results.length < 5 && cleanWord.length >= 1) {
+      for (let i = 0; i < data.length; i++) {
+        if (seen.has(i)) continue;
+        const ja = data[i].japanese;
+        if (ja && normalizeLookupKey(ja).includes(cleanWord)) {
+          seen.add(i);
+          results.push(data[i]);
+          if (results.length >= 10) break;
+        }
+      }
+    }
+    
+    return results;
   }
 
   async _loadExternal(name) {
@@ -195,22 +209,36 @@ class DictionaryService {
       if (!response.ok) return [];
       const data = await response.json();
       const entries = data.entries || data.items || data.sentences || data.words || [];
+      
+      const index = new Map();
       this._externalCaches[name] = entries.map((entry, idx) => {
-        const keys = entry.keys || entry.headwords || entry.words || entry.terms || [entry.word, entry.term, entry.japanese, entry.text].filter(Boolean);
-        const uniqueKeys = [...new Set((keys || []).filter(Boolean))];
-        const searchArr = [
-          entry.word, entry.term, entry.headword, entry.japanese, entry.text,
-          entry.definition, entry.meaning, entry.gloss, entry.description,
-          entry.translation, entry.english,
-          ...(entry.synonyms || []), ...uniqueKeys
-        ];
+        const rawKeys = entry.keys || entry.headwords || entry.words || entry.terms || [entry.word, entry.term, entry.japanese, entry.text].filter(Boolean);
+        const uniqueKeys = [...new Set((rawKeys || []).filter(Boolean))];
+        
+        // Populate inverted index with exact words, terms, and synonyms
+        const indexKeys = new Set([
+          entry.word,
+          entry.term,
+          ...(entry.keys || []),
+          ...(entry.synonyms || [])
+        ]);
+        for (const k of indexKeys) {
+          if (!k) continue;
+          const norm = normalizeLookupKey(k);
+          if (!norm) continue;
+          if (!index.has(norm)) index.set(norm, []);
+          index.get(norm).push(idx);
+        }
+        
         return { 
           ...entry, 
           id: entry.id ?? `bundled-${name}-${idx}`, 
-          keys: uniqueKeys,
-          _searchText: searchArr.filter(Boolean).map(normalizeLookupKey).join(' ')
+          keys: uniqueKeys
         };
       });
+
+      if (!this._externalIndexes) this._externalIndexes = {};
+      this._externalIndexes[name] = index;
       return this._externalCaches[name];
     } catch { return []; }
   }

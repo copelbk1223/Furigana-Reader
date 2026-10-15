@@ -237,7 +237,9 @@ async function openBook(book) {
     installImageLongPress(doc);
     doc.addEventListener('scroll', () => updateScrolledEdgeButtons(doc), { passive: true });
     requestAnimationFrame(() => updateScrolledEdgeButtons(doc));
-    if (settingsService.get('furiganaFilter') !== 'none') await injectFurigana(doc.body);
+    if (settingsService.get('furiganaEnabled') && settingsService.get('furiganaFilter') !== 'none') {
+      await injectFurigana(doc.body);
+    }
   });
   foliateView.addEventListener('reader-toggle-controls', toggleControls);
 

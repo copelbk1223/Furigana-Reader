@@ -20,10 +20,10 @@ export function injectContentHooks(doc, foliateView) {
   const furiganaColor = settingsService.get('furiganaColor') || '#4ec9b0';
   const style = doc.createElement('style');
   style.textContent = `
-    ruby { ruby-align: center; }
-    ruby rt { font-size: 0.55em; color: ${furiganaColor}; font-weight: 400; -webkit-user-select: none !important; user-select: none !important; pointer-events: none !important; }
+    ruby { ruby-align: center; break-inside: avoid !important; -webkit-column-break-inside: avoid !important; }
+    ruby rt { font-size: 0.55em; color: ${furiganaColor}; font-weight: 400; -webkit-user-select: none !important; user-select: none !important; pointer-events: none !important; line-height: 1 !important; }
     ruby rp { display: none; -webkit-user-select: none !important; user-select: none !important; pointer-events: none !important; }
-    body.furigana-hidden ruby rt { display: none !important; font-size: 0 !important; }
+    body.furigana-hidden ruby rt { visibility: hidden !important; font-size: 0 !important; line-height: 0 !important; }
     body.furigana-hidden ruby rp { display: none !important; }
     body.lookup-mode ruby rt,
     body.lookup-mode ruby rp { -webkit-user-select: none !important; user-select: none !important; pointer-events: none !important; }
@@ -352,9 +352,16 @@ function normalizeSelectedLookupText(text = '') {
 }
 
 export async function injectFurigana(body) {
+  if (!body) return;
+  // If the chapter already contains native furigana, do not inject machine furigana
+  // to avoid corrupting layout or triggering Chromium multi-column fragmentation crashes.
+  if (body.querySelectorAll('ruby').length >= 8) return;
+
   const ownerDoc = body.ownerDocument;
   const processed = new Set();
   const els = body.querySelectorAll('p,div,h1,h2,h3,h4,h5,h6,li,td,th,span,a,em,strong,b,i,blockquote');
+  let processedCount = 0;
+
   for (const el of [body, ...els]) {
     if (processed.has(el) || el.closest('ruby,rt,rp,script,style,code,pre')) continue;
     if (el.querySelector('p,div,h1,h2,h3,h4,h5,h6,li') && el !== body) continue;
@@ -365,12 +372,18 @@ export async function injectFurigana(body) {
         if (annotated && annotated !== child.textContent && annotated.includes('<ruby>')) {
           const w = ownerDoc.createElement('span');
           w.className = 'furigana-injected';
+          w.style.breakInside = 'avoid';
           w.dataset.lookupText = child.textContent;
           w.innerHTML = annotated;
           child.parentNode.replaceChild(w, child);
           processed.add(w);
         }
       } catch {}
+      processedCount++;
+      // Yield to the event loop every 8 nodes to avoid starving the layout thread
+      if (processedCount % 8 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
     }
     processed.add(el);
   }
@@ -405,10 +418,10 @@ export function applyStyles(foliateView) {
     iframe, canvas, svg { background-color:${colors.bg}!important; }
     p,li,blockquote,dd { text-align:${ta}!important;
       hanging-punctuation: allow-end last; widows:2; }
-    a:link { color:${colors.link}!important; }
-    ruby rt { font-size:0.55em!important; color:${s.furiganaColor || '#4ec9b0'}!important; -webkit-user-select:none!important; user-select:none!important; pointer-events:none!important; }
+    ruby { break-inside: avoid !important; -webkit-column-break-inside: avoid !important; }
+    ruby rt { font-size:0.55em!important; color:${s.furiganaColor || '#4ec9b0'}!important; -webkit-user-select:none!important; user-select:none!important; pointer-events:none!important; line-height: 1 !important; }
     ruby rp { -webkit-user-select:none!important; user-select:none!important; pointer-events:none!important; }
-    body.furigana-hidden ruby rt { display:none!important; }
+    body.furigana-hidden ruby rt { visibility: hidden !important; font-size: 0 !important; line-height: 0 !important; }
     pre { white-space:pre-wrap!important; }
     aside[epub|type~="footnote"],aside[epub|type~="endnote"],
     aside[epub|type~="note"],aside[epub|type~="rearnote"] { display:none; }

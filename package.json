@@ -1,13 +1,17 @@
 {
   "name": "reader",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "cap:sync": "npm run build && npx cap sync"
+    "cap:sync": "npm run build && npx cap sync",
+    "bump:patch": "node tools/bump-version.js patch",
+    "bump:minor": "node tools/bump-version.js minor",
+    "bump:major": "node tools/bump-version.js major",
+    "release": "node tools/bump-version.js patch && npm run cap:sync"
   },
   "devDependencies": {
     "typescript": "^6.0.3",

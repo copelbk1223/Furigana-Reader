@@ -129,7 +129,4 @@ if (Capacitor.isNativePlatform()) {
 settingsService.get('theme');
 if (!window.location.hash) window.location.hash = '/home';
 
-// Pre-warm kuromoji in background
-import('./services/FuriganaEngine.js').then(mod => mod.furiganaEngine.warmup());
-
 console.log('Reader initialized');
