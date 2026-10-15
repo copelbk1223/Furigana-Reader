@@ -86,18 +86,9 @@ jobs:
       - name: Sync Capacitor Android
         run: npx cap sync android
 
-      - name: Ensure Android XML Resources Exist
+      - name: Verify Android XML Resources
         run: |
-          mkdir -p android/app/src/main/res/xml
-          if [ ! -f "android/app/src/main/res/xml/file_paths.xml" ]; then
-            cat << 'EOF' > android/app/src/main/res/xml/file_paths.xml
-<?xml version="1.0" encoding="utf-8"?>
-<paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <external-path name="my_images" path="." />
-    <cache-path name="my_cache_images" path="." />
-</paths>
-EOF
-          fi
+          ls -la android/app/src/main/res/xml/
 
       - name: Update Android Version in build.gradle
         run: |
