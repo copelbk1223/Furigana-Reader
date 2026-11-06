@@ -31,27 +31,53 @@ export async function renderSettingsPage(container) {
       <div class="s-row"><label>Color</label><div class="s-color-control"><input type="color" id="fg-color" value="${s.furiganaColor || '#4ec9b0'}"><input class="s-color-text" id="fg-color-text" value="${s.furiganaColor || '#4ec9b0'}" maxlength="9"></div></div>
     </div>
     <div class="s-card"><div class="s-card-title">Dictionaries</div>
-      <p class="s-hint">Core libraries are bundled. Download/cache them to IndexedDB for faster offline lookup.</p>
-      <div class="s-row s-dict-row"><div><label>JMdict (Japanese-Multilingual Dictionary)</label><p class="s-sub">Definitions and translations: English, French, German, Russian, and more</p><span class="s-dict-status ok">${jm?'Downloaded':'Bundled'}</span></div><button class="btn btn-sm ${jm?'btn-danger':'btn-primary'}" id="jm-btn">${jm?'Remove':'Download'}</button></div>
+      <p class="s-hint">Core libraries are pre-bundled offline. Enable them for in-memory fast lookup.</p>
+      <div class="s-row s-dict-row">
+        <div>
+          <label>JMdict (Japanese-Multilingual Dictionary)</label>
+          <p class="s-sub">Definitions and translations: English, French, German, Russian, and more</p>
+          <span class="s-dict-status ${jm?'ok':''}" id="jmdict-status">${jm?'Enabled':'Disabled'}</span>
+        </div>
+        <button class="btn btn-sm ${jm?'btn-danger':'btn-primary'}" id="jm-btn">${jm?'Disable':'Enable'}</button>
+      </div>
       <div id="jm-prog" class="s-prog-wrap" style="display:none"><div class="s-prog-bar"><div class="s-prog-fill" id="jm-fill"></div></div></div>
-      <div class="s-row s-dict-row"><div><label>KANJIDIC</label><p class="s-sub">Kanji readings, meanings, grade, JLPT, stroke count, and frequency</p><span class="s-dict-status ok">${kd?'Downloaded':'Bundled'}</span></div><button class="btn btn-sm ${kd?'btn-danger':'btn-primary'}" id="kd-btn">${kd?'Remove':'Download'}</button></div>
+      <div class="s-row s-dict-row">
+        <div>
+          <label>KANJIDIC</label>
+          <p class="s-sub">Kanji readings, meanings, grade, JLPT, stroke count, and frequency</p>
+          <span class="s-dict-status ${kd?'ok':''}" id="kanjidic-status">${kd?'Enabled':'Disabled'}</span>
+        </div>
+        <button class="btn btn-sm ${kd?'btn-danger':'btn-primary'}" id="kd-btn">${kd?'Disable':'Enable'}</button>
+      </div>
       <div id="kd-prog" class="s-prog-wrap" style="display:none"><div class="s-prog-bar"><div class="s-prog-fill" id="kd-fill"></div></div></div>
     </div>
     <div class="s-card"><div class="s-card-title">Additional Data Sources</div>
-      <p class="s-hint">These bundled libraries enhance lookup with synonyms, example sentences, and additional source definitions.</p>
+      <p class="s-hint">These bundled offline libraries enhance lookup with synonyms, example sentences, and additional source definitions.</p>
       <div class="s-row s-dict-row s-dict-external">
-        <div><label>WordNet (JPN/ENG)</label><p class="s-sub">Synonyms, semantic links, word relationships</p><span class="s-dict-status ${extra.wordnet?'ok':''}">${extra.wordnet?'Downloaded':'Bundled'}</span></div>
-        <button class="btn btn-sm ${extra.wordnet?'btn-danger':'btn-primary'}" id="wn-btn">${extra.wordnet?'Remove':'Download'}</button>
+        <div>
+          <label>WordNet (JPN/ENG)</label>
+          <p class="s-sub">Synonyms, semantic links, word relationships</p>
+          <span class="s-dict-status ${extra.wordnet?'ok':''}" id="wordnet-status">${extra.wordnet?'Enabled':'Disabled'}</span>
+        </div>
+        <button class="btn btn-sm ${extra.wordnet?'btn-danger':'btn-primary'}" id="wn-btn">${extra.wordnet?'Disable':'Enable'}</button>
       </div>
       <div id="wn-prog" class="s-prog-wrap" style="display:none"><div class="s-prog-bar"><div class="s-prog-fill" id="wn-fill"></div></div></div>
       <div class="s-row s-dict-row s-dict-external">
-        <div><label>Tanaka Corpus</label><p class="s-sub">250,000+ example sentences with translations</p><span class="s-dict-status ${extra.tanaka?'ok':''}">${extra.tanaka?'Downloaded':'Bundled'}</span></div>
-        <button class="btn btn-sm ${extra.tanaka?'btn-danger':'btn-primary'}" id="tk-btn">${extra.tanaka?'Remove':'Download'}</button>
+        <div>
+          <label>Tanaka Corpus</label>
+          <p class="s-sub">250,000+ example sentences with translations</p>
+          <span class="s-dict-status ${extra.tanaka?'ok':''}" id="tanaka-status">${extra.tanaka?'Enabled':'Disabled'}</span>
+        </div>
+        <button class="btn btn-sm ${extra.tanaka?'btn-danger':'btn-primary'}" id="tk-btn">${extra.tanaka?'Disable':'Enable'}</button>
       </div>
       <div id="tk-prog" class="s-prog-wrap" style="display:none"><div class="s-prog-bar"><div class="s-prog-fill" id="tk-fill"></div></div></div>
       <div class="s-row s-dict-row s-dict-external">
-        <div><label>Wiktionary / Wikidata</label><p class="s-sub">Additional definitions, proper names, places</p><span class="s-dict-status ${extra.wiktionary?'ok':''}">${extra.wiktionary?'Downloaded':'Bundled'}</span></div>
-        <button class="btn btn-sm ${extra.wiktionary?'btn-danger':'btn-primary'}" id="wk-btn">${extra.wiktionary?'Remove':'Download'}</button>
+        <div>
+          <label>Wiktionary / Wikidata</label>
+          <p class="s-sub">Additional definitions, proper names, places</p>
+          <span class="s-dict-status ${extra.wiktionary?'ok':''}" id="wiktionary-status">${extra.wiktionary?'Enabled':'Disabled'}</span>
+        </div>
+        <button class="btn btn-sm ${extra.wiktionary?'btn-danger':'btn-primary'}" id="wk-btn">${extra.wiktionary?'Disable':'Enable'}</button>
       </div>
       <div id="wk-prog" class="s-prog-wrap" style="display:none"><div class="s-prog-bar"><div class="s-prog-fill" id="wk-fill"></div></div></div>
     </div>
@@ -71,57 +97,63 @@ export async function renderSettingsPage(container) {
     settingsService.set('furiganaColor', color);
   };
 
-  const dictBtn = async (name, btnId, progId, fillId) => {
-    page.querySelector(btnId).onclick = async () => {
-      const loaded = await dictionaryService.isLoaded(name);
-      if (loaded) { 
-        await dictionaryService.disable(name); 
-        page.querySelector(btnId).textContent = 'Enable';
-        page.querySelector(btnId).classList.remove('danger');
-      } else {
-        page.querySelector(progId).style.display = 'block';
-        page.querySelector(btnId).disabled = true;
-        try { 
-          await dictionaryService.enable(name, p => { page.querySelector(fillId).style.width = p + '%'; }); 
-          page.querySelector(btnId).textContent = 'Disable';
-          page.querySelector(btnId).classList.add('danger');
-        } catch (e) { 
-          alert('Failed: ' + e.message); 
-        }
-        page.querySelector(progId).style.display = 'none';
-        page.querySelector(btnId).disabled = false;
-      }
+  const updateRowState = (name, isEnabled) => {
+    const btnIdMap = {
+      jmdict: '#jm-btn',
+      kanjidic: '#kd-btn',
+      wordnet: '#wn-btn',
+      tanaka: '#tk-btn',
+      wiktionary: '#wk-btn',
     };
-  };
-  dictBtn('jmdict', '#jm-btn', '#jm-prog', '#jm-fill');
-  dictBtn('kanjidic', '#kd-btn', '#kd-prog', '#kd-fill');
+    const btn = page.querySelector(btnIdMap[name]);
+    const status = page.querySelector(`#${name}-status`);
 
-  const externalDownload = (name, btnId, progId, fillId, url, label) => {
-    page.querySelector(btnId).onclick = async () => {
+    if (btn) {
+      btn.textContent = isEnabled ? 'Disable' : 'Enable';
+      btn.classList.toggle('btn-danger', isEnabled);
+      btn.classList.toggle('btn-primary', !isEnabled);
+    }
+    if (status) {
+      status.textContent = isEnabled ? 'Enabled' : 'Disabled';
+      status.classList.toggle('ok', isEnabled);
+    }
+  };
+
+  const setupToggle = (name, btnId, progId, fillId, label) => {
+    const btn = page.querySelector(btnId);
+    const prog = page.querySelector(progId);
+    const fill = page.querySelector(fillId);
+    if (!btn) return;
+
+    btn.onclick = async () => {
       const loaded = await dictionaryService.isLoaded(name);
       if (loaded) {
         await dictionaryService.disable(name);
-        page.querySelector(btnId).textContent = 'Enable';
-        page.querySelector(btnId).classList.remove('danger');
-        return;
+        updateRowState(name, false);
+      } else {
+        if (prog) prog.style.display = 'block';
+        if (fill) fill.style.width = '0%';
+        btn.disabled = true;
+        try {
+          await dictionaryService.enable(name, p => {
+            if (fill) fill.style.width = p + '%';
+          });
+          updateRowState(name, true);
+        } catch (e) {
+          alert(`Could not enable ${label}: ${e.message}`);
+        } finally {
+          if (prog) prog.style.display = 'none';
+          btn.disabled = false;
+        }
       }
-      page.querySelector(progId).style.display = 'block';
-      page.querySelector(btnId).disabled = true;
-      try {
-        await dictionaryService.enable(name, p => { page.querySelector(fillId).style.width = p + '%'; });
-        page.querySelector(btnId).textContent = 'Disable';
-        page.querySelector(btnId).classList.add('danger');
-      } catch (e) {
-        window.open(url, '_blank', 'noopener');
-        alert(`Could not import ${label}: ${e.message}`);
-      }
-      page.querySelector(progId).style.display = 'none';
-      page.querySelector(btnId).disabled = false;
     };
   };
-  externalDownload('wordnet', '#wn-btn', '#wn-prog', '#wn-fill', 'https://bond-lab.github.io/wnja/data/wnjpn.db.gz', 'WordNet');
-  externalDownload('tanaka', '#tk-btn', '#tk-prog', '#tk-fill', 'https://www.edrdg.org/wiki/index.php/Tanaka_Corpus', 'Tanaka Corpus');
-  externalDownload('wiktionary', '#wk-btn', '#wk-prog', '#wk-fill', 'https://en.wiktionary.org/wiki/Wiktionary:Database_download', 'Wiktionary / Wikidata');
+
+  setupToggle('jmdict', '#jm-btn', '#jm-prog', '#jm-fill', 'JMdict');
+  setupToggle('kanjidic', '#kd-btn', '#kd-prog', '#kd-fill', 'KANJIDIC');
+  setupToggle('wordnet', '#wn-btn', '#wn-prog', '#wn-fill', 'WordNet');
+  setupToggle('tanaka', '#tk-btn', '#tk-prog', '#tk-fill', 'Tanaka Corpus');
+  setupToggle('wiktionary', '#wk-btn', '#wk-prog', '#wk-fill', 'Wiktionary / Wikidata');
 }
 
 function normalizeColor(value, fallback) {
