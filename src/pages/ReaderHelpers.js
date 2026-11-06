@@ -41,20 +41,59 @@ export function injectContentHooks(doc, foliateView) {
     body.furigana-hidden ruby rp { display: none !important; }
     body.lookup-mode ruby rt,
     body.lookup-mode ruby rp { -webkit-user-select: none !important; user-select: none !important; pointer-events: none !important; }
-    body.lookup-mode { cursor: text !important; -webkit-user-select: text !important; user-select: text !important; }
+    body.lookup-mode { -webkit-user-select: text !important; user-select: text !important; }
     body.lookup-mode ::selection { background: rgba(78,201,176,0.32) !important; }
-    body.lookup-mode :is(ruby, .furigana-injected > ruby, .lookup-token) {
+    body.lookup-mode .lookup-word {
       text-decoration-line: underline !important;
       text-decoration-style: dotted !important;
-      text-decoration-color: rgba(125,125,125,0.45) !important;
-      text-decoration-thickness: 1px !important;
+      text-decoration-color: rgba(125,125,125,0.5) !important;
+      text-decoration-thickness: 1.2px !important;
       text-underline-offset: 0.16em !important;
       text-decoration-skip-ink: none !important;
+      cursor: pointer !important;
+      -webkit-tap-highlight-color: transparent !important;
+    }
+    body.lookup-mode .lookup-word:hover,
+    body.lookup-mode .lookup-word:active,
+    body.lookup-mode .lookup-word.active-lookup {
+      text-decoration-style: solid !important;
+      text-decoration-color: var(--c-accent, #4ec9b0) !important;
+      background-color: rgba(78, 201, 176, 0.18) !important;
+      border-radius: 2px !important;
     }
   `;
   doc.head.appendChild(style);
   if (!furiganaOn) doc.body.classList.add('furigana-hidden');
   if (isLookupMode) doc.body.classList.add('lookup-mode');
+
+  // Single-tap direct lookup for grouped words (Yomiwa style)
+  doc.addEventListener('click', (e) => {
+    if (!isLookupMode) return;
+    const wordEl = e.target.closest('.lookup-word');
+    if (!wordEl) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    clearLookupSelection(doc);
+
+    const word = wordEl.dataset.base || wordEl.dataset.word;
+    const reading = wordEl.dataset.reading || '';
+    const rect = wordEl.getBoundingClientRect();
+    const frame = doc.defaultView?.frameElement;
+    const frameRect = frame ? frame.getBoundingClientRect() : { left: 0, top: 0 };
+    const position = {
+      x: frameRect.left + rect.left + rect.width / 2,
+      y: frameRect.top + rect.bottom
+    };
+
+    for (const d of [...hookedLookupDocs]) {
+      d.querySelectorAll?.('.lookup-word.active-lookup')?.forEach(el => el.classList.remove('active-lookup'));
+    }
+    wordEl.classList.add('active-lookup');
+
+    showDictionaryPopup(word, reading, { text: wordEl.dataset.word || word, index: 0 }, position);
+  }, true);
 
   hookedLookupDocs.add(doc);
   let lookupTimer = null;
@@ -289,9 +328,21 @@ export function getActiveSelectionDoc() {
   return null;
 }
 
+function extractCleanSelectionText(sel, doc) {
+  if (!sel || !sel.rangeCount || sel.isCollapsed) return '';
+  try {
+    const range = sel.getRangeAt(0);
+    const fragment = range.cloneContents();
+    fragment.querySelectorAll?.('rt, rp')?.forEach(el => el.remove());
+    return normalizeSelectedLookupText(fragment.textContent || '');
+  } catch {
+    return normalizeSelectedLookupText(sel.toString?.() || '');
+  }
+}
+
 function notifyLookupSelectionChange(doc) {
   const sel = doc?.getSelection?.();
-  const text = normalizeSelectedLookupText(sel?.toString?.() || '');
+  const text = extractCleanSelectionText(sel, doc);
   const hasSelection = !!(isLookupMode && sel && !sel.isCollapsed && sel.rangeCount && text && containsJapanese(text));
   window.dispatchEvent(new CustomEvent('reader:lookup-selection', { detail: { hasSelection } }));
 }
@@ -300,8 +351,7 @@ function selectionLookup(doc, event = null, options = {}) {
   if (!isLookupMode || Date.now() < lookupSuppressUntil) return false;
   const sel = doc.getSelection?.();
   if (!sel || sel.isCollapsed || !sel.rangeCount) return false;
-  const raw = sel.toString?.() || '';
-  const text = normalizeSelectedLookupText(raw);
+  const text = extractCleanSelectionText(sel, doc);
   if (!text || text.length > 60 || !containsJapanese(text)) return false;
 
   const range = sel.rangeCount ? sel.getRangeAt(0) : null;
@@ -346,8 +396,11 @@ function clearLookupSelection(doc, selection = null) {
 }
 
 function cleanupLookupState() {
-  lookupSuppressUntil = Date.now() + 900;
-  for (const doc of [...hookedLookupDocs]) clearLookupSelection(doc);
+  lookupSuppressUntil = Date.now() + 500;
+  for (const doc of [...hookedLookupDocs]) {
+    clearLookupSelection(doc);
+    doc.querySelectorAll?.('.lookup-word.active-lookup')?.forEach(el => el.classList.remove('active-lookup'));
+  }
 }
 
 window.addEventListener('reader:lookup-cleanup', cleanupLookupState);
@@ -374,13 +427,13 @@ export async function injectFurigana(body) {
   let processedCount = 0;
 
   for (const el of [body, ...els]) {
-    if (processed.has(el) || el.closest('ruby,rt,rp,script,style,code,pre')) continue;
+    if (processed.has(el) || el.closest('ruby,rt,rp,script,style,code,pre,.furigana-injected')) continue;
     if (el.querySelector('p,div,h1,h2,h3,h4,h5,h6,li') && el !== body) continue;
     for (const child of Array.from(el.childNodes)) {
       if (child.nodeType !== 3 || !child.textContent.trim() || !containsJapanese(child.textContent)) continue;
       try {
-        const annotated = await furiganaEngine.annotate(child.textContent);
-        if (annotated && annotated !== child.textContent && annotated.includes('<ruby>')) {
+        const annotated = await furiganaEngine.tokenizeAndAnnotate(child.textContent);
+        if (annotated && annotated !== child.textContent) {
           const w = ownerDoc.createElement('span');
           w.className = 'furigana-injected';
           w.dataset.lookupText = child.textContent;
@@ -388,7 +441,9 @@ export async function injectFurigana(body) {
           child.parentNode.replaceChild(w, child);
           processed.add(w);
         }
-      } catch {}
+      } catch (err) {
+        console.warn('Furigana tokenize error:', err);
+      }
       processedCount++;
       // Yield to the event loop every 8 nodes to avoid starving the layout thread
       if (processedCount % 8 === 0) {
@@ -397,6 +452,20 @@ export async function injectFurigana(body) {
     }
     processed.add(el);
   }
+
+  // Handle any pre-existing native EPUB ruby tags so they also work with single-tap lookup
+  body.querySelectorAll('ruby:not(.lookup-word)').forEach(ruby => {
+    if (ruby.closest('.furigana-injected')) return;
+    const rt = ruby.querySelector('rt');
+    const rtText = rt?.textContent || '';
+    const baseText = getPlainText(ruby);
+    if (baseText && containsJapanese(baseText)) {
+      ruby.classList.add('lookup-word');
+      ruby.dataset.word = baseText;
+      ruby.dataset.base = baseText;
+      if (rtText) ruby.dataset.reading = rtText;
+    }
+  });
 }
 
 export function forEachIframeDoc(foliateView, fn) {

@@ -124,8 +124,8 @@
 .reader-page.scrolled .tap,
 .reader-page.vertical-mode .tap{display:none}
 .reader-page.lookup-mode #btn-lk{color:#fff;background:linear-gradient(135deg,#10b981,#06b6d4);box-shadow:0 0 18px rgba(16,185,129,.35)}
-.reader-page.lookup-mode::after{content:'Lookup mode · tap Japanese text';position:absolute;left:50%;bottom:calc(76px + var(--safe-b));transform:translateX(-50%);z-index:42;padding:7px 12px;border:1px solid rgba(78,201,176,.38);border-radius:999px;background:color-mix(in srgb,var(--c-surface) 82%,transparent);color:var(--c-text);font-size:.72rem;font-weight:700;letter-spacing:.01em;box-shadow:0 10px 28px rgba(0,0,0,.22),0 0 24px rgba(78,201,176,.18);backdrop-filter:blur(14px);pointer-events:none;animation:lookupPulse 1.8s ease-in-out infinite}
-.reader-page.android-runtime.lookup-mode::after{content:'Lookup mode · select text, then tap Lookup selection'}
+.reader-page.lookup-mode::after{content:'Lookup mode — tap any word';position:absolute;left:50%;bottom:calc(76px + var(--safe-b));transform:translateX(-50%);z-index:42;padding:7px 12px;border:1px solid rgba(78,201,176,.38);border-radius:999px;background:color-mix(in srgb,var(--c-surface) 82%,transparent);color:var(--c-text);font-size:.72rem;font-weight:700;letter-spacing:.01em;box-shadow:0 10px 28px rgba(0,0,0,.22),0 0 24px rgba(78,201,176,.18);backdrop-filter:blur(14px);pointer-events:none;animation:lookupPulse 1.8s ease-in-out infinite}
+.reader-page.android-runtime.lookup-mode::after{content:'Lookup mode — tap any word'}
 .r-lookup-cta{position:absolute;left:50%;bottom:calc(126px + var(--safe-b));transform:translateX(-50%);z-index:75;border:0;border-radius:999px;padding:11px 16px;background:linear-gradient(135deg,#10b981,#06b6d4);color:#fff;font-family:var(--font-ui);font-size:.82rem;font-weight:800;letter-spacing:.01em;box-shadow:0 16px 36px rgba(6,182,212,.34),0 0 0 1px rgba(255,255,255,.16) inset;cursor:pointer;animation:lookupCtaIn .18s var(--ease)}
 .r-lookup-cta.hide{display:none}
 .r-lookup-cta:active{transform:translateX(-50%) scale(.96)}

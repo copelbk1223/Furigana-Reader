@@ -1,13 +1,18 @@
 /**
- * Furigana Engine — Uses kuroshiro + @patdx/kuromoji for Japanese annotation
+ * Furigana Engine — Uses kuroshiro + @patdx/kuromoji for Japanese annotation & Yomiwa-style morphological tokenization
  * Dictionary files are pre-decompressed .dat files served from /dict/
  */
 import settingsService from './SettingsService.js';
-import { containsJapanese } from '../utils/helpers.js';
+import { containsJapanese, escapeHtml } from '../utils/helpers.js';
 
 let _kuroshiro = null;
+let _analyzer = null;
 let _initPromise = null;
 let _initFailed = false;
+
+function katakanaToHiragana(str = '') {
+  return str.replace(/[\u30A1-\u30F6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+}
 
 class KuromojiAnalyzerAdapter {
   constructor() { this._tokenizer = null; }
@@ -62,6 +67,7 @@ class FuriganaEngine {
         const instance = new Kuroshiro();
         const analyzer = new KuromojiAnalyzerAdapter();
         await instance.init(analyzer);
+        _analyzer = analyzer;
         _kuroshiro = instance;
         console.log('✅ Kuroshiro + Kuromoji ready');
         return _kuroshiro;
@@ -74,6 +80,81 @@ class FuriganaEngine {
     })();
 
     return _initPromise;
+  }
+
+  /**
+   * Tokenize Japanese text into Yomiwa-style clean grouped words,
+   * injecting <ruby> furigana inside the word token wrapper.
+   */
+  async tokenizeAndAnnotate(text) {
+    if (!text || typeof text !== 'string' || !containsJapanese(text)) return null;
+    const kuroshiro = await this._getKuroshiro();
+    if (!kuroshiro || !_analyzer) return null;
+
+    const settings = settingsService.getAll();
+    const furiganaOn = !!settings.furiganaEnabled && settings.furiganaFilter !== 'none';
+    const to = settings.furiganaMode === 'romaji' ? 'romaji' : 'hiragana';
+
+    let rawTokens = [];
+    try {
+      rawTokens = await _analyzer.parse(text);
+    } catch {
+      return null;
+    }
+    if (!rawTokens.length) return null;
+
+    // Group grammatical chunks (verbs + auxiliaries, adjectives + inflections, noun + suffixes, te-forms)
+    const grouped = [];
+    let current = null;
+
+    for (const t of rawTokens) {
+      const isAux = t.pos === '助動詞';
+      const isConnectiveTe = t.pos === '助詞' && (t.surface_form === 'て' || t.surface_form === 'で');
+      const isSuffix = t.pos_detail_1 === '接尾';
+      const isVerbFollowup = (isAux || isConnectiveTe || isSuffix) && current && (current.pos === '動詞' || current.pos === '形容詞');
+      const isNounSuffix = isSuffix && current && current.pos === '名詞';
+      const isSubVerb = current && (current.surface.endsWith('て') || current.surface.endsWith('で')) && (t.surface_form === 'いる' || t.surface_form === 'いた' || t.surface_form === 'おく' || t.surface_form === 'ある' || t.surface_form === 'いらっしゃる');
+
+      if (isVerbFollowup || isNounSuffix || isSubVerb) {
+        current.surface += t.surface_form;
+        current.reading += (t.reading || t.surface_form);
+      } else {
+        if (current) grouped.push(current);
+        current = {
+          surface: t.surface_form,
+          base: t.basic_form && t.basic_form !== '*' ? t.basic_form : t.surface_form,
+          pos: t.pos,
+          pos_detail_1: t.pos_detail_1,
+          reading: t.reading || t.surface_form,
+        };
+      }
+    }
+    if (current) grouped.push(current);
+
+    let outputHtml = '';
+    const isKanjiRegex = /[\u4E00-\u9FAF\u3400-\u4DBF々]/;
+
+    for (const g of grouped) {
+      // Punctuation, symbols, and pure whitespace output as plain text
+      if (g.pos === '記号' || /^\s+$/.test(g.surface)) {
+        outputHtml += escapeHtml(g.surface);
+        continue;
+      }
+
+      let inner = escapeHtml(g.surface);
+      if (furiganaOn && isKanjiRegex.test(g.surface)) {
+        try {
+          inner = await kuroshiro.convert(g.surface, { mode: 'furigana', to });
+        } catch {
+          inner = escapeHtml(g.surface);
+        }
+      }
+
+      const reading = katakanaToHiragana(g.reading || '');
+      outputHtml += `<span class="lookup-word" data-word="${escapeHtml(g.surface)}" data-base="${escapeHtml(g.base)}" data-reading="${escapeHtml(reading)}" data-pos="${escapeHtml(g.pos)}">${inner}</span>`;
+    }
+
+    return outputHtml;
   }
 
   async annotate(text) {

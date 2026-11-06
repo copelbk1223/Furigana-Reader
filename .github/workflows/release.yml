@@ -95,6 +95,9 @@ jobs:
           VERSION="${{ steps.versioning.outputs.version }}"
           echo "Syncing Android versionName to $VERSION"
           sed -i -E "s/versionName \"[^\"]+\"/versionName \"$VERSION\"/" android/app/build.gradle
+          CODE=$(( ${{ github.run_number }} + 10 ))
+          echo "Syncing Android versionCode to $CODE"
+          sed -i -E "s/versionCode [0-9]+/versionCode $CODE/" android/app/build.gradle
 
       - name: Build Android APK
         working-directory: android
